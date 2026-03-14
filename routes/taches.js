@@ -21,7 +21,33 @@ router.get('/', authRequired, async (req, res) => {
         if (tri === 'titre') taches.sort((a, b) => a.titre.localeCompare(b.titre));
         if (tri === 'statut') taches.sort((a, b) => a.terminee - b.terminee);
 
-        res.render('index', { taches, recherche: recherche || '', tri: tri || '', username: req.session.username });
+        // Calcul des tâches urgentes (dans moins de 15 minutes)
+        const maintenant = new Date();
+        const dans15min = new Date(maintenant.getTime() + 15 * 60 * 1000);
+        const tachesUrgentes = taches.filter(t =>
+            !t.terminee &&
+            t.date_execution &&
+            new Date(t.date_execution) > maintenant &&
+            new Date(t.date_execution) <= dans15min
+        );
+
+        // Données pour les push notifications
+        const tachesPush = taches
+            .filter(t => !t.terminee && t.date_execution)
+            .map(t => ({
+                id: t._id,
+                titre: t.titre,
+                date_execution: t.date_execution
+            }));
+
+        res.render('index', { 
+            taches, 
+            tachesUrgentes,
+            tachesPush,
+            recherche: recherche || '', 
+            tri: tri || '', 
+            username: req.session.username 
+        });
     } catch (err) {
         res.status(500).send('Erreur serveur');
     }
@@ -30,8 +56,13 @@ router.get('/', authRequired, async (req, res) => {
 // Ajouter une tâche
 router.post('/ajout', authRequired, async (req, res) => {
     try {
-        const { titre, description } = req.body;
-        const tache = new Tache({ titre, description, user: req.session.userId });
+        const { titre, description, date_execution } = req.body;
+        const tache = new Tache({ 
+            titre, 
+            description,
+            date_execution: date_execution ? new Date(date_execution) : null,
+            user: req.session.userId 
+        });
         await tache.save();
         res.redirect('/taches');
     } catch (err) {

@@ -18,11 +18,31 @@
     <div class="container">
         <h1>Mes Tâches</h1>
 
+        <!-- Alertes 15 minutes -->
+        <% if (tachesUrgentes.length > 0) { %>
+            <div class="alertes-container">
+                <h3>🚨 Urgent — Tâches dans moins de 15 minutes !</h3>
+                <% tachesUrgentes.forEach(t => { %>
+                    <div class="alerte-banner">
+                        🔔 <strong><%= t.titre %></strong> — prévue à
+                        <strong><%= new Date(t.date_execution).toLocaleString('fr-FR') %></strong>
+                        <button class="alerte-close" onclick="this.parentElement.remove()">✕</button>
+                    </div>
+                <% }) %>
+            </div>
+        <% } %>
+
         <!-- Formulaire ajout -->
         <div class="form-ajout">
             <form action="/taches/ajout" method="POST">
                 <input type="text" name="titre" placeholder="Titre de la tâche" required>
                 <textarea name="description" placeholder="Description (optionnelle)" rows="2"></textarea>
+                <input
+                    type="datetime-local"
+                    name="date_execution"
+                    id="date_execution"
+                    title="Date et heure prévue d'exécution"
+                >
                 <button type="submit" class="btn-primary">➕ Ajouter</button>
             </form>
         </div>
@@ -59,6 +79,9 @@
                     <div class="description"><%= tache.description %></div>
                 <% } %>
                 <div class="date">📅 <%= tache.dateCreation.toLocaleDateString('fr-FR') %></div>
+                <% if (tache.date_execution) { %>
+                    <div class="date">🕐 Prévue le : <%= new Date(tache.date_execution).toLocaleString('fr-FR') %></div>
+                <% } %>
 
                 <div class="tache-actions">
                     <!-- Terminer -->
@@ -82,5 +105,89 @@
             </div>
         <% }) %>
     </div>
+
+    <!-- Injection des données serveur pour le JS -->
+   <script type="application/json" id="taches-data">
+    <%- JSON.stringify(tachesPush) %>
+</script>
+
+<script>
+    // ─── Calendrier : limite à l'année courante ───────────────────────
+    const input = document.getElementById('date_execution');
+    if (input) {
+        const year = new Date().getFullYear();
+        input.min = `${year}-01-01T00:00`;
+        input.max = `${year}-12-31T23:59`;
+    }
+
+    // ─── Push Notifications : rappel 5 minutes avant ─────────────────
+    const tachesData = JSON.parse(document.getElementById('taches-data').textContent);
+    const RAPPEL_MS = 5 * 60 * 1000;
+
+    function demanderPermissionEtNotifier() {
+        if (!("Notification" in window)) {
+            console.log("Navigateur ne supporte pas les notifications");
+            return;
+        }
+        if (Notification.permission === 'granted') {
+            planifierNotifications();
+        } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') planifierNotifications();
+            });
+        }
+    }
+
+    function planifierNotifications() {
+        tachesData.forEach(tache => {
+            const dateExec = new Date(tache.date_execution).getTime();
+            const maintenant = Date.now();
+            const delai = dateExec - maintenant - RAPPEL_MS;
+
+            console.log("Tache: " + tache.titre + " | delai: " + Math.round(delai/1000) + "s");
+
+            if (delai > 0) {
+                setTimeout(() => {
+                    envoyerNotification(tache.titre);
+                }, delai);
+            }
+
+            if (delai <= 0 && maintenant < dateExec) {
+                envoyerNotification(tache.titre);
+            }
+        });
+    }
+
+    function envoyerNotification(titre) {
+        console.log("Envoi notification pour: " + titre);
+        new Notification('Rappel TaskManager', {
+            body: 'La tache "' + titre + '" commence dans 5 minutes !',
+            icon: '/favicon.ico',
+            requireInteraction: true
+        });
+    }
+
+    demanderPermissionEtNotifier();
+
+    // ─── Rechargement toutes les 5 minutes sauf si notif imminente ───
+    function rechargerSiSafe() {
+        const maintenant = Date.now();
+        const tachesPush = JSON.parse(document.getElementById('taches-data').textContent);
+
+        const imminente = tachesPush.some(t => {
+            const diff = new Date(t.date_execution).getTime() - maintenant;
+            return diff > 0 && diff <= 6 * 60 * 1000;
+        });
+
+        if (!imminente) {
+            location.reload();
+        } else {
+            setTimeout(rechargerSiSafe, 30 * 1000);
+        }
+    }
+
+    setTimeout(rechargerSiSafe, 5 * 60 * 1000);
+</script>
+
 </body>
 </html>
