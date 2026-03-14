@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Mes Tâches</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <nav>
+        <span style="color:white;font-weight:bold;font-size:18px">✅ TaskManager</span>
+        <div>
+            <span style="color:white">👤 <%= username %></span>
+            <a href="/chat">💬 Chat</a>
+            <a href="/auth/logout">Déconnexion</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>Mes Tâches</h1>
+
+        <!-- Formulaire ajout -->
+        <div class="form-ajout">
+            <form action="/taches/ajout" method="POST">
+                <input type="text" name="titre" placeholder="Titre de la tâche" required>
+                <textarea name="description" placeholder="Description (optionnelle)" rows="2"></textarea>
+                <button type="submit" class="btn-primary">➕ Ajouter</button>
+            </form>
+        </div>
+
+        <!-- Barre recherche et tri -->
+        <form method="GET" action="/taches">
+            <div class="barre-outils">
+                <input type="text" name="recherche" placeholder="🔍 Rechercher..." value="<%= recherche %>">
+                <select name="tri">
+                    <option value="">Trier par...</option>
+                    <option value="date" <%= tri === 'date' ? 'selected' : '' %>>📅 Date</option>
+                    <option value="titre" <%= tri === 'titre' ? 'selected' : '' %>>🔤 Titre</option>
+                    <option value="statut" <%= tri === 'statut' ? 'selected' : '' %>>✅ Statut</option>
+                </select>
+                <button type="submit" class="btn-primary">Appliquer</button>
+                <a href="/taches"><button type="button" class="btn-warning">Reset</button></a>
+            </div>
+        </form>
+
+        <!-- Liste des tâches -->
+        <% if (taches.length === 0) { %>
+            <p style="text-align:center;color:#888;margin-top:30px">Aucune tâche trouvée !</p>
+        <% } %>
+
+        <% taches.forEach(tache => { %>
+            <div class="tache <%= tache.terminee ? 'terminee' : '' %>">
+                <div class="titre">
+                    <%= tache.titre %>
+                    <% if (tache.terminee) { %>
+                        <span class="badge-terminee">✅ Terminée</span>
+                    <% } %>
+                </div>
+                <% if (tache.description) { %>
+                    <div class="description"><%= tache.description %></div>
+                <% } %>
+                <div class="date">📅 <%= tache.dateCreation.toLocaleDateString('fr-FR') %></div>
+
+                <div class="tache-actions">
+                    <!-- Terminer -->
+                    <form action="/taches/terminer/<%= tache._id %>" method="POST">
+                        <button type="submit" class="btn-success">
+                            <%= tache.terminee ? '↩️ Reprendre' : '✅ Terminer' %>
+                        </button>
+                    </form>
+
+                    <!-- Modifier -->
+                    <form action="/taches/modifier/<%= tache._id %>" method="POST" style="display:flex;gap:8px">
+                        <input type="text" name="titre" placeholder="Nouveau titre" style="width:200px">
+                        <button type="submit" class="btn-warning">✏️ Modifier</button>
+                    </form>
+
+                    <!-- Supprimer -->
+                    <form action="/taches/supprimer/<%= tache._id %>" method="POST">
+                        <button type="submit" class="btn-danger">🗑️ Supprimer</button>
+                    </form>
+                </div>
+            </div>
+        <% }) %>
+    </div>
+</body>
+</html>

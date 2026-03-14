@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <nav>
+        <span style="color:white;font-weight:bold;font-size:18px"> TaskManager</span>
+        <div>
+            <span style="color:white">👤 <%= username %></span>
+            <a href="/taches">📋 Tâches</a>
+            <a href="/auth/logout">Déconnexion</a>
+        </div>
+    </nav>
+
+    <div class="chat-container">
+        <h1>💬 Chat en temps réel</h1>
+
+        <div class="messages" id="messages">
+            <% messages.forEach(msg => { %>
+                <div class="message">
+                    <span class="auteur"><%= msg.auteur %></span>
+                    <div class="contenu"><%= msg.contenu %></div>
+                </div>
+            <% }) %>
+        </div>
+
+        <div class="chat-form">
+            <input type="text" id="input-message" placeholder="Écrire un message..." />
+            <button class="btn-primary" onclick="envoyerMessage()">Envoyer</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const username = '<%= username %>';
+
+        // Recevoir les messages
+        socket.on('message', (data) => {
+            const div = document.createElement('div');
+            div.className = 'message';
+            div.innerHTML = `<span class="auteur">${data.auteur}</span><div class="contenu">${data.contenu}</div>`;
+            document.getElementById('messages').appendChild(div);
+            document.getElementById('messages').scrollTop = 9999;
+        });
+
+        // Envoyer un message
+        function envoyerMessage() {
+            const input = document.getElementById('input-message');
+            const contenu = input.value.trim();
+            if (!contenu) return;
+            socket.emit('message', { contenu, auteur: username });
+            input.value = '';
+        }
+
+        // Envoyer avec la touche Entrée
+        document.getElementById('input-message').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') envoyerMessage();
+        });
+
+        // Scroller en bas au chargement
+        document.getElementById('messages').scrollTop = 9999;
+    </script>
+</body>
+</html>
